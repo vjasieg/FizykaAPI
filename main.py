@@ -1,18 +1,67 @@
-import flask
-import matplotlib as mpl
 import math
-import numpy as np
-from matplotlib.animation import FuncAnimation
-import matplotlib.pyplot as plot
-import matplotlib.artist as artist
-from flask import send_file, request
-from IPython import display
-import os
+
+import flask
 import imageio
+import matplotlib as mpl
+import matplotlib.pyplot as plot
+import numpy as np
+from flask import send_file, request
+import random
+import threading
+
 
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
 mpl.use("Agg")
+
+
+class WykresXT:
+    def make(self, amp, okres):
+        name = random.randint(0, 1000000)
+        time = np.arange(0, 20, 0.1)
+        plot.plot(time, calc_xt(amp=float(amp), czas=time, okres_d=float(okres)))
+        plot.title('Wykres x(t)')
+        plot.xlabel('t (czas)')
+        plot.ylabel('x (wychylenie)')
+        plot.grid(True, which='both')
+        plot.axhline(y=0, color='k')
+        plot.savefig(str(name) + '.png')
+        plot.close()
+        plot.figure().clear()
+        return str(name) + '.png'
+
+
+class WykresAT:
+    def make(self, amp, faza, okres):
+        name = random.randint(0, 1000000)
+        time = np.arange(0, 20, 0.1)
+        plot.plot(time, calc_at(amp=float(amp), czas=time, faza_poczatkowa=float(faza), okres_d=float(okres)))
+        plot.title('Wykres a(t)')
+        plot.xlabel('t (czas)')
+        plot.ylabel('a (przyśpieszenie)')
+        plot.grid(True, which='both')
+        plot.axhline(y=0, color='k')
+        plot.savefig(str(name) + '.png')
+        plot.close()
+        plot.figure().clear()
+        return str(name) + '.png'
+
+
+class WykresVT:
+    def make(self, amp, faza, okres):
+        name = random.randint(0, 1000000)
+        time = np.arange(0, 20, 0.1)
+        plot.plot(time, calc_vt(amp=float(amp), czas=time, faza_poczatkowa=float(faza), okres_d=float(okres)))
+        plot.title('Wykres v(t)')
+        plot.xlabel('t (czas)')
+        plot.ylabel('v (predkosc)')
+        plot.grid(True, which='both')
+        plot.axhline(y=0, color='k')
+        plot.savefig(str(name) + '.png')
+        plot.close()
+        plot.figure().clear()
+        return str(name) + '.png'
+
 
 def calc_vt(amp, czas, faza_poczatkowa, okres_d):
     y = []
@@ -47,7 +96,7 @@ def calc_at(amp, czas, faza_poczatkowa, okres_d):
         return round(-amp * (omega ** 2) * math.sin(omega * czas + faza_poczatkowa), 5)
 
 
-def draw_point(x, y, i):
+def draw_point(x, y, i, okres):
     # Draw a point at the location (3, 9) with size 1000
     plot.scatter(x, y, s=60)
     # Set chart title.
@@ -76,6 +125,14 @@ def draw_point(x, y, i):
     plot.figure().clear()
 
 
+def calc_a(x, length):
+    if length > x:
+        z = (length ** 2) - (x ** 2)
+    else:
+        z = (x ** 2) - (length ** 2)
+    return length - math.sqrt(z)
+
+
 @app.route('/wartosci_t', methods=['GET'])
 def wartosci_t():
     args = {"amp": float(request.args.get('amp')), "okres": float(request.args.get('okres')), "czas": float(request.args.get('czas')), "faza": float(request.args.get('faza'))}
@@ -94,34 +151,19 @@ def wartosci_t():
 def wykres_v():
     args = {"amp": request.args.get('amp'), "okres": request.args.get('okres'), "faza": request.args.get('faza')}
     if args["amp"] is not None and args["okres"] is not None and args["faza"] is not None:
-        time = np.arange(0, 20, 0.1)
-        plot.plot(time, calc_vt(amp=float(args["amp"]), czas=time, faza_poczatkowa=float(args["faza"]), okres_d=float(args["okres"])))
-        plot.title('Wykres v(t)')
-        plot.xlabel('t (czas)')
-        plot.ylabel('v (predkosc)')
-        plot.grid(True, which='both')
-        plot.axhline(y=0, color='k')
-        plot.savefig('chart.png')
-        plot.figure().clear()
-        return send_file("chart.png")
+        wykres = WykresVT()
+        return send_file(wykres.make(args["amp"], args["faza"], args["okres"]))
     else:
         return "podaj: '?amp=' '&okres=' '&faza='"
 
 
 @app.route('/wykres_x', methods=['GET'])
 def wykres_x():
+    time = []
     args = {"amp": request.args.get('amp'), "okres": request.args.get('okres')}
     if args["amp"] is not None and args["okres"] is not None:
-        time = np.arange(0, 20, 0.1)
-        plot.plot(time, calc_xt(amp=float(args["amp"]), czas=time, okres_d=float(args["okres"])))
-        plot.title('Wykres x(t)')
-        plot.xlabel('t (czas)')
-        plot.ylabel('x (wychylenie)')
-        plot.grid(True, which='both')
-        plot.axhline(y=0, color='k')
-        plot.savefig('chart.png')
-        plot.figure().clear()
-        return send_file("chart.png")
+        wykres = WykresXT()
+        return send_file(wykres.make(args["amp"], args["okres"]))
     else:
         return "podaj: '?amp=' '&okres='"
 
@@ -130,22 +172,15 @@ def wykres_x():
 def wykres_a():
     args = {"amp": request.args.get('amp'), "okres": request.args.get('okres'), "faza": request.args.get("faza")}
     if args["amp"] is not None and args["okres"] is not None and args["faza"] is not None:
-        time = np.arange(0, 20, 0.1)
-        plot.plot(time, calc_at(amp=float(args["amp"]), czas=time, faza_poczatkowa=float(args["faza"]), okres_d=float(args["okres"])))
-        plot.title('Wykres a(t)')
-        plot.xlabel('t (czas)')
-        plot.ylabel('a (przyśpieszenie)')
-        plot.grid(True, which='both')
-        plot.axhline(y=0, color='k')
-        plot.savefig('chart.png')
-        plot.figure().clear()
-        return send_file("chart.png")
+        wykres = WykresAT()
+        return send_file(wykres.make(args["amp"], args["faza"], args["okres"]))
     else:
         return "podaj: '?amp=' '&okres=' '&faza='"
 
 
 @app.route('/wahadlo', methods=['GET'])
 def wahadlo():
+    print("zaczynam robic zdjecie")
     args = {"amp": request.args.get('amp'), "okres": request.args.get('okres')}
     x = 0
     y = 0
@@ -169,13 +204,13 @@ def wahadlo():
         old_calc = calc
 
     imageNames = []
-    for i in range(200):
+    for i in range(int(args["okres"]) * 20):
         imageNames.append(".\\frames\\" + str(i) + '.png')
     images = list(imageNames)
     image_list = []
     for file_name in images:
         image_list.append(imageio.imread(file_name))
-    imageio.mimwrite('result.gif', image_list)
+    imageio.mimwrite('result.gif', image_list, fps=20)
     return send_file('result.gif')
 
 
