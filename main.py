@@ -1,3 +1,4 @@
+import concurrent.futures
 import math
 
 import flask
@@ -8,6 +9,7 @@ import numpy as np
 from flask import send_file, request
 import random
 import threading
+import os
 
 
 app = flask.Flask(__name__)
@@ -18,14 +20,15 @@ mpl.use("Agg")
 class WykresXT:
     def make(self, amp, okres):
         name = random.randint(0, 1000000)
-        time = np.arange(0, 20, 0.1)
-        plot.plot(time, calc_xt(amp=float(amp), czas=time, okres_d=float(okres)))
-        plot.title('Wykres x(t)')
-        plot.xlabel('t (czas)')
-        plot.ylabel('x (wychylenie)')
-        plot.grid(True, which='both')
-        plot.axhline(y=0, color='k')
-        plot.savefig(str(name) + '.png')
+        time = np.arange(0, 60, 0.1)
+        fig, ax = plot.subplots()  # <-- here is the start of the different part
+        ax.plot(time, calc_xt(amp=float(amp), czas=time, okres_d=float(okres)))
+        ax.set_title('Wykres x(t)')
+        ax.set_xlabel('t (czas)')
+        ax.set_ylabel('x (wychylenie)')
+        ax.grid(True, which='both')
+        ax.axhline(y=0, color='k')
+        fig.savefig(str(name) + '.png') # <-- end of the modified part
         plot.close()
         plot.figure().clear()
         return str(name) + '.png'
@@ -34,14 +37,15 @@ class WykresXT:
 class WykresAT:
     def make(self, amp, faza, okres):
         name = random.randint(0, 1000000)
-        time = np.arange(0, 20, 0.1)
-        plot.plot(time, calc_at(amp=float(amp), czas=time, faza_poczatkowa=float(faza), okres_d=float(okres)))
-        plot.title('Wykres a(t)')
-        plot.xlabel('t (czas)')
-        plot.ylabel('a (przyśpieszenie)')
-        plot.grid(True, which='both')
-        plot.axhline(y=0, color='k')
-        plot.savefig(str(name) + '.png')
+        time = np.arange(0, 60, 0.1)
+        fig, ax = plot.subplots()  # <-- here is the start of the different part
+        ax.plot(time, calc_at(amp=float(amp), czas=time, faza_poczatkowa=float(faza), okres_d=float(okres)))
+        ax.set_title('Wykres a(t)')
+        ax.set_xlabel('t (czas)')
+        ax.set_ylabel('a (przyśpieszenie)')
+        ax.grid(True, which='both')
+        ax.axhline(y=0, color='k')
+        fig.savefig(str(name) + '.png')  # <-- end of the modified part
         plot.close()
         plot.figure().clear()
         return str(name) + '.png'
@@ -50,17 +54,68 @@ class WykresAT:
 class WykresVT:
     def make(self, amp, faza, okres):
         name = random.randint(0, 1000000)
-        time = np.arange(0, 20, 0.1)
-        plot.plot(time, calc_vt(amp=float(amp), czas=time, faza_poczatkowa=float(faza), okres_d=float(okres)))
-        plot.title('Wykres v(t)')
-        plot.xlabel('t (czas)')
-        plot.ylabel('v (predkosc)')
-        plot.grid(True, which='both')
-        plot.axhline(y=0, color='k')
-        plot.savefig(str(name) + '.png')
+        time = np.arange(0, 60, 0.1)
+        fig, ax = plot.subplots()  # <-- here is the start of the different part
+        ax.plot(time, calc_vt(amp=float(amp), czas=time, faza_poczatkowa=float(faza), okres_d=float(okres)))
+        ax.set_title('Wykres a(t)')
+        ax.set_xlabel('t (czas)')
+        ax.set_ylabel('v (prędkość)')
+        ax.grid(True, which='both')
+        ax.axhline(y=0, color='k')
+        fig.savefig(str(name) + '.png')  # <-- end of the modified part
         plot.close()
         plot.figure().clear()
         return str(name) + '.png'
+
+
+class Wahadlo:
+    def draw_point(self, x, y, i, okres, folder, amp):
+        fig, ax = plot.subplots()
+        # Draw a point at the location (3, 9) with size 1000
+        ax.scatter(x, y, s=60)
+        # Set chart title.
+        ax.set_title("Wahadło", fontsize=19)
+        # Set x axis label.
+        ax.set_xlabel("Wychylenie", fontsize=10)
+        # Set y axis label.
+        # Set size of tick labels.
+        ax.tick_params(axis='both', which='major', labelsize=9)
+        # Display the plot in the matplotlib's viewer.
+
+        # List to hold x values.
+        x_number_values = [0, x]
+        # List to hold y values.
+        y_number_values = [25, y]
+        # Plot the number in the list and set the line thickness.
+        ax.plot(x_number_values, y_number_values, linewidth=3)
+        # Set the x, y axis tick marks text size.
+        ax.tick_params(axis='both', labelsize=9)
+
+        ax.set_xlim([-2 * amp, 2 * amp])
+        ax.set_ylim([-40, 40])
+
+        fig.savefig(folder + "\\" + str(i) + '.png')
+        plot.close()
+        plot.figure().clear()
+    def make(self, args):
+        name = ".\\frames" + str(random.randint(0, 10000000))
+        os.mkdir(name)
+
+        x = 0
+        time = np.arange(0, float(args["okres"]), 1 / 20)
+        for i in time:
+            calc = calc_xt(float(args["amp"]), i, float(args["okres"]))
+            y = 25 * calc_a(calc, 25)
+            self.draw_point(
+                calc,
+                y,
+                x,
+                int(args["okres"]),
+                name,
+                float(args["amp"]),
+            )
+            x += 1
+        return name
 
 
 def calc_vt(amp, czas, faza_poczatkowa, okres_d):
@@ -94,35 +149,6 @@ def calc_at(amp, czas, faza_poczatkowa, okres_d):
         return y
     else:
         return round(-amp * (omega ** 2) * math.sin(omega * czas + faza_poczatkowa), 5)
-
-
-def draw_point(x, y, i, okres):
-    # Draw a point at the location (3, 9) with size 1000
-    plot.scatter(x, y, s=60)
-    # Set chart title.
-    plot.title("Square Numbers", fontsize=19)
-    # Set x axis label.
-    plot.xlabel("Number", fontsize=10)
-    # Set y axis label.
-    plot.ylabel("Wahadlo matematyczne", fontsize=10)
-    # Set size of tick labels.
-    plot.tick_params(axis='both', which='major', labelsize=9)
-    # Display the plot in the matplotlib's viewer.
-
-    # List to hold x values.
-    x_number_values = [0, x]
-    # List to hold y values.
-    y_number_values = [25, y]
-    # Plot the number in the list and set the line thickness.
-    plot.plot(x_number_values, y_number_values, linewidth=3)
-    # Set the x, y axis tick marks text size.
-    plot.tick_params(axis='both', labelsize=9)
-
-    plot.xlim([-2, 2])
-    plot.ylim([-50, 50])
-
-    plot.savefig(".\\frames\\" + str(i) + '.png')
-    plot.figure().clear()
 
 
 def calc_a(x, length):
@@ -163,7 +189,12 @@ def wykres_x():
     args = {"amp": request.args.get('amp'), "okres": request.args.get('okres')}
     if args["amp"] is not None and args["okres"] is not None:
         wykres = WykresXT()
-        return send_file(wykres.make(args["amp"], args["okres"]))
+        # x = threading.Thread(target=wykres.make(args["amp"], args["okres"]), args=(1,), daemon=True)
+        # x.start()
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(wykres.make, args["amp"], args["okres"])
+            return_value = future.result()
+            return send_file(return_value)
     else:
         return "podaj: '?amp=' '&okres='"
 
@@ -205,7 +236,7 @@ def wahadlo():
 
     imageNames = []
     for i in range(int(args["okres"]) * 20):
-        imageNames.append(".\\frames\\" + str(i) + '.png')
+        imageNames.append(folder_name + "\\" + str(i) + '.png')
     images = list(imageNames)
     image_list = []
     for file_name in images:
