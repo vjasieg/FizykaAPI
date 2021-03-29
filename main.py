@@ -21,6 +21,7 @@ class WykresXT:
     def make(self, amp, okres):
         name = random.randint(0, 1000000)
         time = np.arange(0, 60, 0.1)
+        print(time)
         fig, ax = plot.subplots()  # <-- here is the start of the different part
         ax.plot(time, calc_xt(amp=float(amp), czas=time, okres_d=float(okres)))
         ax.set_title('Wykres x(t)')
@@ -112,7 +113,7 @@ class Wahadlo:
                 x,
                 int(args["okres"]),
                 name,
-                float(args["amp"]),
+                float(args["amp"])
             )
             x += 1
         return name
@@ -241,8 +242,8 @@ def wahadlo():
     image_list = []
     for file_name in images:
         image_list.append(imageio.imread(file_name))
-    imageio.mimwrite('result.gif', image_list, fps=20)
-    return send_file('result.gif')
+    imageio.mimwrite(folder_name + '\\result.gif', image_list, fps=20)
+    return send_file(folder_name + '\\result.gif')
 
 
 if __name__ == "__main__":
