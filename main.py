@@ -92,7 +92,7 @@ class Wahadlo:
         # Set the x, y axis tick marks text size.
         ax.tick_params(axis='both', labelsize=9)
 
-        ax.set_xlim([-2 * amp, 2 * amp])
+        ax.set_xlim([-1*(amp/0.625), (amp/0.625)])
         ax.set_ylim([-40, 40])
 
         fig.savefig(folder + "\\" + str(i) + '.png')
@@ -101,12 +101,13 @@ class Wahadlo:
     def make(self, args):
         name = ".\\frames" + str(random.randint(0, 10000000))
         os.mkdir(name)
-
+        old_calc = float(args["amp"])
         x = 0
         time = np.arange(0, float(args["okres"]), 1 / 20)
         for i in time:
+            y = 25 * calc_a(calc_xt(float(args["amp"]), i, float(args["okres"])), 25)
             calc = calc_xt(float(args["amp"]), i, float(args["okres"]))
-            y = 25 * calc_a(calc, 25)
+            print("x=", calc, " y=", y)
             self.draw_point(
                 calc,
                 y,
@@ -115,6 +116,7 @@ class Wahadlo:
                 name,
                 float(args["amp"])
             )
+            old_calc = calc
             x += 1
         return name
 
@@ -152,12 +154,13 @@ def calc_at(amp, czas, faza_poczatkowa, okres_d):
         return round(-amp * (omega ** 2) * math.sin(omega * czas + faza_poczatkowa), 5)
 
 
-def calc_a(x, length):
-    if length > x:
-        z = (length ** 2) - (x ** 2)
-    else:
-        z = (x ** 2) - (length ** 2)
-    return length - math.sqrt(z)
+def calc_a(x, lenght):
+    d = math.sqrt(math.pow(lenght, 2) - math.pow(x, 2))
+    return lenght - d
+
+
+def calc_xy(lenght, y):
+    return lenght - math.sqrt(abs(math.pow(lenght, 2) - math.sqrt(lenght - y)))
 
 
 @app.route('/wartosci_t', methods=['GET'])
@@ -214,26 +217,12 @@ def wykres_a():
 def wahadlo():
     print("zaczynam robic zdjecie")
     args = {"amp": request.args.get('amp'), "okres": request.args.get('okres')}
-    x = 0
-    y = 0
-    old_calc = 0
-    time = np.arange(0, 20, 0.1)
-    for i in time:
-        calc = calc_xt(float(args["amp"]), i, float(args["okres"]))
-        draw_point(
-            calc,
-            y,
-            x
-        )
-        if x < 0:
-            y += 0.1
-        else:
-            y -= 0.1
+    wahadlo = Wahadlo()
+    folder_name = ""
 
-        print(round(y, 1))
-        print("x= " + str(calc))
-        x += 1
-        old_calc = calc
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future = executor.submit(wahadlo.make, args)
+        folder_name = future.result()
 
     imageNames = []
     for i in range(int(args["okres"]) * 20):
