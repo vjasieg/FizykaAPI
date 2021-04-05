@@ -18,12 +18,12 @@ mpl.use("Agg")
 
 
 class WykresXT:
-    def make(self, amp, okres):
+    def make(self, amp, okres, faza):
         name = random.randint(0, 1000000)
         time = np.arange(0, 60, 0.1)
         print(time)
         fig, ax = plot.subplots()  # <-- here is the start of the different part
-        ax.plot(time, calc_xt(amp=float(amp), czas=time, okres_d=float(okres)))
+        ax.plot(time, calc_xt(amp=float(amp), czas=time, okres_d=float(okres), faza=float(faza)))
         ax.set_title('Wykres x(t)')
         ax.set_xlabel('t (czas)')
         ax.set_ylabel('x (wychylenie)')
@@ -132,12 +132,12 @@ def calc_vt(amp, czas, faza_poczatkowa, okres_d):
         return round(amp * omega * math.cos((omega * czas) + faza_poczatkowa), 5)
 
 
-def calc_xt(amp, czas, okres_d):
+def calc_xt(amp, czas, okres_d, faza):
     y = []
     omega = (2 * math.pi) / okres_d
     if not isinstance(czas, int) and not isinstance(czas, float):
         for val in czas:
-            y.append(amp * math.cos(omega * val))
+            y.append(amp * math.cos((omega * val) + faza))
         return y
     else:
         return round(amp * math.cos(omega * czas), 5)
@@ -154,9 +154,9 @@ def calc_at(amp, czas, faza_poczatkowa, okres_d):
         return round(-amp * (omega ** 2) * math.sin(omega * czas + faza_poczatkowa), 5)
 
 
-def calc_a(x, lenght):
-    d = math.sqrt(math.pow(lenght, 2) - math.pow(x, 2))
-    return lenght - d
+def calc_a(x, length):
+    d = math.sqrt(math.pow(length, 2) - math.pow(x, 2))
+    return length - d
 
 
 def calc_xy(lenght, y):
@@ -169,7 +169,7 @@ def wartosci_t():
     if args["amp"] is not None and args["okres"] is not None and args["faza"] is not None and args["czas"] is not None:
         json = {
             "v(t)": calc_vt(args["amp"], args["czas"], args["faza"], args["okres"]),
-            "x(t)": calc_xt(args["amp"], args["czas"], args["okres"]),
+            "x(t)": calc_xt(args["amp"], args["czas"], args["okres"], args["faza"]),
             "a(t)": calc_at(args["amp"], args["czas"], args["faza"], args["okres"])
         }
         return json
@@ -190,15 +190,10 @@ def wykres_v():
 @app.route('/wykres_x', methods=['GET'])
 def wykres_x():
     time = []
-    args = {"amp": request.args.get('amp'), "okres": request.args.get('okres')}
-    if args["amp"] is not None and args["okres"] is not None:
+    args = {"amp": request.args.get('amp'), "okres": request.args.get('okres'), "faza": request.args.get('faza')}
+    if args["amp"] is not None and args["okres"] is not None and args["faza"] is not None:
         wykres = WykresXT()
-        # x = threading.Thread(target=wykres.make(args["amp"], args["okres"]), args=(1,), daemon=True)
-        # x.start()
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(wykres.make, args["amp"], args["okres"])
-            return_value = future.result()
-            return send_file(return_value)
+        return send_file(wykres.make(args["amp"], args["okres"], args["faza"]))
     else:
         return "podaj: '?amp=' '&okres='"
 
